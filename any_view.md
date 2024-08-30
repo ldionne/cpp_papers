@@ -206,7 +206,7 @@ does not allow users to configure the `range_value_t`, `range_difference_t`, `bo
 This paper proposes the following interface:
 
 ```cpp
-enum class any_view_category
+enum class any_view_options
 {
     none = 0,
     input = 1,
@@ -217,11 +217,11 @@ enum class any_view_category
     mask = contiguous,
     sized = 32,
     borrowed = 64,
-    move_only_view = 128
+    move_only = 128
 };
 
 template <class Value,
-          any_view_category Cat = any_view_category::input,
+          any_view_options Opts = any_view_options::input,
           class Ref = Value &,
           class RValueRef = add_rvalue_reference_t<remove_reference_t<Ref>>,
           class Diff = ptrdiff_t>
@@ -234,13 +234,13 @@ class any_view {
              view_category_constraint<View>())
   any_view(View view);
 
-  any_view(const any_view &) 
-    requires ((Cat & any_view_category::move_only_view) == any_view_category::none);
+  any_view(const any_view &)
+    requires (!(Cat & any_view_options::move_only));
 
   any_view(any_view &&) = default;
 
   any_view &operator=(const any_view &)
-    requires ((Cat & any_view_category::move_only_view) == any_view_category::none);
+    requires (!(Cat & any_view_options::move_only));
 
   any_view &operator=(any_view &&);
 
@@ -248,20 +248,21 @@ class any_view {
   sentinel end();
 
   size_t size() const
-    requires((Cat & any_view_category::sized) != any_view_category::none);
+    requires (Cat & any_view_category::sized);
 };
 
 template <class Value, any_view_category Cat, class Ref, class RValueRef,
           class Diff>
 inline constexpr bool
     enable_borrowed_range<any_view<Value, Cat, Ref, RValueRef, Diff>> =
-        (Cat & any_view_category::borrowed) != any_view_category::none;
+        (Cat & any_view_category::borrowed);
 ```
 
 The intent is that users can select various desired properties of the `any_view` by `bitwise-or`ing them. For example:
 
 ```cpp
-using MyView = std::ranges::any_view<Widget, std::ranges::any_view_category::bidirectional | std::ranges::any_view_category::sized>;
+using MyView = std::ranges::any_view<Widget, std::ranges::any_view_options::bidirectional |
+                                             std::ranges::any_view_options::sized>;
 ```
 
 # Other Design Considerations
